@@ -5,26 +5,35 @@ function InitToolkit () {
   function @DefClass() {
     DefClass="$1"
     eval _Class_${DefClass}_Attributes=""
-    eval _Class_${DefClass}_Methods="\"${DefClass}::${DefClass} \""
+    eval _Class_${DefClass}_Arrays=""
+    eval _Class_${DefClass}_Methods=\"${DefClass}::${DefClass} \"
     eval "${DefClass}::${DefClass} () { return 0; }"
     if [ "$#" = "3" -a "$2" = ":" ]; then
       eval local _ParentAttributes=\$_Class_$3_Attributes
       eval local _Attributes=_Class_${DefClass}_Attributes
-      eval $_Attributes=\"\${$_Attributes}${_ParentAttributes} \"
+      eval $_Attributes+=\"\${_ParentAttributes}\"
+      eval local _ParentArrays=\$_Class_$3_Arrays
+      eval local _Arrays=_Class_${DefClass}_Arrays
+      eval $_Arrays+=\"\${_ParentArrays}\"
       eval local _ParentMethods=\$_Class_$3_Methods
       eval local _Methods=_Class_${DefClass}_Methods
-      eval $_Methods=\"\${$_Methods}${_ParentMethods} \"
+      eval $_Methods+=\"\${_ParentMethods}\"
     fi
   }
 
   function @DefAttribute () {
     local _Attributes="_Class_${DefClass}_Attributes"
-    eval $_Attributes=\"\${$_Attributes}$1 \"
+    eval $_Attributes+=\"\$1 \"
+  }
+
+  function @DefArray () {
+    local _Arrays="_Class_${DefClass}_Arrays"
+    eval $_Arrays+=\"\$1 \"
   }
 
   function @DefMethod () {
     local _Methods="_Class_${DefClass}_Methods"
-    eval $_Methods=\"\${$_Methods}${DefClass}::$1 \"
+    eval $_Methods+=\"\${DefClass}::\$1 \"
   }
 
   function _LoadAttributes () {
@@ -32,6 +41,14 @@ function InitToolkit () {
     local _Attribute
     for _Attribute in $_Attributes; do
       eval this_${_Attribute}=\"\$_Instance_${_Instance}_${_Attribute}\"
+    done
+  }
+
+  function _LoadArrays () {
+    eval local _Arrays=\"\$_Class_${_Class}_Arrays\"
+    local _Array
+    for _Array in $_Arrays; do
+      eval this_${_Array}=\(\${_Instance_${_Instance}_${_Array}\[\@\]}\)
     done
   }
 
@@ -50,6 +67,15 @@ function InitToolkit () {
     for _Attribute in $_Attributes; do
       eval _Instance_${_Instance}_${_Attribute}=\"\$this_${_Attribute}\"
       unset -v this_${_Attribute}
+    done
+  }
+
+  function _SaveArrays () {
+    eval local _Arrays=\"\$_Class_${_Class}_Arrays\"
+    local _Array
+    for _Array in $_Arrays; do
+      eval _Instance_${_Instance}_${_Array}=\(\${this_${_Array}\[\@\]}\)
+      unset -v this_${_Array}
     done
   }
 
@@ -81,7 +107,7 @@ function InitToolkit () {
     eval local _methods=\"\$_Class_${_class}_Methods\"
     for _originalmethod in $_methods; do
       local _method=$(_MethodName $_originalmethod)
-      eval "${_object}.${_method} () { local _Instance=$_instance; local _Class=$_class; _LoadAttributes; _LoadMethods; ${_originalmethod} \"\$@\"; local rt=\$?; _SaveAttributes; _ClearMethods; return $rt; }"
+      eval "${_object}.${_method} () { local _Instance=$_instance; local _Class=$_class; _LoadAttributes; _LoadArrays ; _LoadMethods; ${_originalmethod} \"\$@\"; local rt=\$?; _SaveAttributes; _SaveArrays; _ClearMethods; return $rt; }"
     done
     eval ${_object}.${_class} \"\$@\" || true
   }
@@ -90,12 +116,17 @@ function InitToolkit () {
   eval local _instance=\$$1
   eval local _class=\$_TypeOf_${_instance}
   eval local _attributes=\$_Class_${_class}_Attributes
+  eval local _arrays=\$_Class_${_class}_Arrays
   eval local _methods=\$_Class_${_class}_Methods
   unset $1
   unset _TypeOf_${_instance}
   local _attribute
   for _attribute in $_attributes; do
-    unset -v Instance_${_instance}_${_attribute}
+    unset -v _Instance_${_instance}_${_attribute}
+  done
+  local _array
+  for _array in $_arrays; do
+    unset -v _Instance_${_instance}_${_array}
   done
   local _originalmethod
   for _originalmethod in $_methods; do
